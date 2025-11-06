@@ -126,8 +126,6 @@ SwiftCache is released under the MIT License. See [LICENSE](LICENSE) for details
 ## 👤 Author
 
 **Sudhir Gadhvi**
-
-- GitHub: [@SudhirGadhvi](https://github.com/SudhirGadhvi)
 - LinkedIn: [Sudhir Gadhvi](https://www.linkedin.com/in/sudhirgadhvi/)
 
 ## 🙏 Acknowledgments
