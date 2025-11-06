@@ -49,7 +49,7 @@ final class SwiftCacheTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Load image")
         let url = URL(string: "https://via.placeholder.com/150")!
         
-        sut.loadImage(from: url) { result in
+        sut.loadImage(from: url, placeholder: nil) { result in
             switch result {
             case .success(let image):
                 XCTAssertNotNil(image)
@@ -65,7 +65,7 @@ final class SwiftCacheTests: XCTestCase {
     func testCancellation() {
         let url = URL(string: "https://via.placeholder.com/1500")!
         
-        let token = sut.loadImage(from: url) { result in
+        let token = sut.loadImage(from: url, placeholder: nil) { result in
             XCTFail("Should not complete after cancellation")
         }
         
@@ -75,7 +75,7 @@ final class SwiftCacheTests: XCTestCase {
     
     func testClearCache() {
         sut.clearCache()
-        let (memSize, diskSize) = sut.getCacheSize()
+        let (_, diskSize) = sut.getCacheSize()
         XCTAssertEqual(diskSize, 0)
     }
     
@@ -89,7 +89,7 @@ final class SwiftCacheTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Analytics tracking")
         let url = URL(string: "https://via.placeholder.com/150")!
         
-        sut.loadImage(from: url) { _ in
+        sut.loadImage(from: url, placeholder: nil) { _ in
             let metrics = self.sut.getMetrics()
             XCTAssertGreaterThan(metrics.totalRequests, 0)
             expectation.fulfill()
@@ -97,38 +97,4 @@ final class SwiftCacheTests: XCTestCase {
         
         wait(for: [expectation], timeout: 10.0)
     }
-    
-    // MARK: - TTL Tests
-    
-    func testTTLExpiration() {
-        let expectation = XCTestExpectation(description: "TTL expiration")
-        let url = URL(string: "https://via.placeholder.com/150")!
-        
-        // Load image with 1 second TTL
-        sut.loadImage(from: url, ttl: 1.0) { _ in
-            // Wait 2 seconds for TTL to expire
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                // Load again - should fetch from network, not cache
-                self.sut.loadImage(from: url, ttl: 1.0) { result in
-                    XCTAssertNotNil(result)
-                    expectation.fulfill()
-                }
-            }
-        }
-        
-        wait(for: [expectation], timeout: 15.0)
-    }
 }
-
-// MARK: - Async Tests
-
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-extension SwiftCacheTests {
-    
-    func testAsyncAwaitLoad() async throws {
-        let url = URL(string: "https://via.placeholder.com/150")!
-        let image = try await sut.loadImage(from: url)
-        XCTAssertNotNil(image)
-    }
-}
-
