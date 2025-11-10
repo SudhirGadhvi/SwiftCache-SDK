@@ -37,14 +37,14 @@ A modern, lightweight image caching library for iOS and macOS. Built with 100% A
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/SudhirGadhvi/SwiftCache-SDK", from: "1.0.0")
+    .package(url: "https://github.com/SudhirGadhvi/SwiftCache-SDK", from: "2.0.0")
 ]
 ```
 
 ### CocoaPods
 
 ```ruby
-pod 'SwiftCache', '~> 1.0'
+pod 'SwiftCache', '~> 2.0'
 ```
 
 ## 🚀 Quick Start
