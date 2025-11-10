@@ -9,8 +9,8 @@
 A modern, lightweight image caching library for iOS and macOS. Built with 100% Apple native APIs—zero dependencies.
 
 <p align="center">
-  <img src="assets/demo-app.png" alt="SwiftCache Demo" width="300"/>
-  <img src="assets/stats-screen.png" alt="Performance Stats" width="300"/>
+  <img width="590" height="1278" alt="demo-app" src="https://github.com/user-attachments/assets/df1f4b15-4eff-42ce-9264-b3f072f8edc2" />
+  <img width="590" height="1278" alt="stats-screen" src="https://github.com/user-attachments/assets/021c9d2e-280a-4f8c-9db6-5896cd4eeb11" />
 </p>
 
 ## 🌟 Features
