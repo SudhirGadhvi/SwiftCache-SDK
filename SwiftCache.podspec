@@ -11,7 +11,7 @@ pluggable Strategy pattern for custom loaders, and full macOS support with image
   s.homepage         = 'https://github.com/SudhirGadhvi/SwiftCache-SDK'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Sudhir Gadhvi' => 'sudhirgadhviwork@gmail.com' }
-  s.source           = { :git => 'https://github.com/SudhirGadhvi/SwiftCache-SDK.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/SudhirGadhvi/SwiftCache-SDK.git', :tag => "v#{s.version}" }
 
   s.ios.deployment_target = '14.0'
   s.osx.deployment_target = '12.0'
