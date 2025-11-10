@@ -160,34 +160,84 @@ This makes SwiftCache incredibly flexible - use your own cache backends, network
 
 ## 🗺️ Roadmap
 
-### v2.1.0 (Next Release)
+### ✅ v1.0.0 (Released - January 2025)
+
+**Initial Release**
+- [x] Three-tier caching system (Memory → Disk → Network)
+- [x] TTL (time-to-live) support with automatic expiration
+- [x] UIImageView extension for easy integration
+- [x] SwiftUI `CachedImage` view
+- [x] Callback-based APIs
+- [x] Progressive loading (thumbnail → full image)
+- [x] Cache analytics and performance metrics
+- [x] Cancellable requests with token-based cancellation
+- [x] Lifecycle-aware memory management
+- [x] LRU disk cache cleanup
+- [x] Cross-platform support (iOS, macOS, tvOS, watchOS)
+- [x] Zero external dependencies
+- [x] Image downscaling (iOS only)
+
+### ✅ v2.0.0 (Released - January 2025)
+
+**Major Architecture Rewrite - Swift Concurrency & Design Patterns**
+- [x] **Actor-based architecture** - Pure Swift Concurrency
+- [x] **Chain of Responsibility pattern** - Clean cache fallback
+- [x] **Strategy pattern** - Pluggable custom loaders
+- [x] **Async/await native APIs** - Modern Swift
+- [x] **macOS downscaling support** - Feature parity with iOS
+- [x] **Custom loader API** - Extensibility for Redis, S3, etc.
+- [x] **Granular metrics** - Per-layer performance tracking
+- [x] **Swift 6 ready** - Full Sendable conformance
+- [x] **Removed all GCD** - No DispatchQueue mixing
+- [x] **Fixed MainActor blocking** - Proper isolation
+- [x] **Thread-safe by design** - Compiler-enforced safety
+- [x] **Backward compatible** - Callback APIs maintained
+- [x] **Comprehensive tests** - 11 tests covering all features
+- [x] **Architecture guide** - Deep dive documentation
+
+### 🚧 v2.1.0 (Next Release - Q2 2025)
+
+**Reactive & Format Support**
 - [ ] **Combine Support** - Publishers for reactive programming
 - [ ] **GIF Animation Support** - Animated image caching
 - [ ] **WebP Format Support** - Modern image format
 - [ ] **Custom Image Processors** - Transform images before caching
 - [ ] **Network Reachability** - Pause downloads when offline
+- [ ] **Batch Operations** - Bulk prefetch/clear operations
 
-### v2.2.0
+### 🔮 v2.2.0 (Q3 2025)
+
+**Intelligence & UX**
 - [ ] **Prefetching API** - Intelligent prefetch with priority
 - [ ] **Image Placeholders** - Blurhash/ThumbHash support
 - [ ] **Cache Warming** - Preload frequently used images
 - [ ] **Memory Pressure Monitoring** - Adaptive cache limits
+- [ ] **Smart Eviction** - Usage-based cache management
+- [ ] **Request Coalescing** - Deduplicate simultaneous requests
 
-### v3.0.0 (Major)
+### 🎯 v3.0.0 (Major - Q4 2025)
+
+**Advanced Features & Cloud**
 - [ ] **Advanced Transformations** - Resize, crop, filters, effects
 - [ ] **Video Thumbnail Caching** - Extract and cache video frames
 - [ ] **CloudKit Sync** - Sync cache across devices
 - [ ] **Custom Disk Paths** - Multi-level disk cache
 - [ ] **SwiftData Integration** - Modern persistence layer
+- [ ] **Background Downloads** - URLSession background transfer
+- [ ] **Streaming Support** - Progressive JPEG/PNG decoding
 
-### Future Considerations
+### 💡 Future Considerations (Beyond v3.0)
+
+**Next-Gen & ML**
 - [ ] **AVIF Format Support** - Next-gen image format
 - [ ] **HEIF/HEIC Optimization** - Native Apple format improvements
-- [ ] **Background Downloads** - URLSession background transfer
 - [ ] **Smart Cache Eviction** - ML-based prediction
 - [ ] **CDN Integration** - Cloudflare, CloudFront adapters
+- [ ] **Image Quality Adaptation** - Automatic quality based on network
+- [ ] **Distributed Caching** - Multi-device cache sharing
+- [ ] **Server-Side Swift** - Vapor/Hummingbird integration
 
-Want a feature? [Open an issue](https://github.com/SudhirGadhvi/SwiftCache-SDK/issues)!
+Want a feature? [Open an issue](https://github.com/SudhirGadhvi/SwiftCache-SDK/issues) or submit a PR!
 
 ## 🤝 Contributing
 
