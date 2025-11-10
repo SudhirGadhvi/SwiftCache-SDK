@@ -282,7 +282,7 @@ dependencies: [
 ### CocoaPods
 
 ```ruby
-pod 'SwiftCache', '~> 2.0'
+pod 'SwiftCacheSDK', '~> 2.0'
 ```
 
 ---
