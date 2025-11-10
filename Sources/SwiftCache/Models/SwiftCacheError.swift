@@ -9,7 +9,7 @@
 import Foundation
 
 /// Errors that can occur during image caching operations
-public enum SwiftCacheError: Error, LocalizedError {
+public enum SwiftCacheError: Error, LocalizedError, Sendable, Equatable {
     
     case invalidURL
     case networkError(Error)
@@ -17,7 +17,29 @@ public enum SwiftCacheError: Error, LocalizedError {
     case diskWriteError(Error)
     case diskReadError(Error)
     case cancelled
-    case unknown(Error)
+    case imageNotFound
+    case unknown
+    
+    // MARK: - Equatable
+    
+    public static func == (lhs: SwiftCacheError, rhs: SwiftCacheError) -> Bool {
+        switch (lhs, rhs) {
+        case (.invalidURL, .invalidURL),
+             (.invalidImageData, .invalidImageData),
+             (.cancelled, .cancelled),
+             (.imageNotFound, .imageNotFound),
+             (.unknown, .unknown):
+            return true
+        case (.networkError(let lhsError), .networkError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        case (.diskWriteError(let lhsError), .diskWriteError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        case (.diskReadError(let lhsError), .diskReadError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        default:
+            return false
+        }
+    }
     
     public var errorDescription: String? {
         switch self {
@@ -33,8 +55,10 @@ public enum SwiftCacheError: Error, LocalizedError {
             return "Failed to read image from disk: \(error.localizedDescription)"
         case .cancelled:
             return "The operation was cancelled"
-        case .unknown(let error):
-            return "Unknown error: \(error.localizedDescription)"
+        case .imageNotFound:
+            return "Image not found in any cache layer"
+        case .unknown:
+            return "Unknown error occurred"
         }
     }
 }

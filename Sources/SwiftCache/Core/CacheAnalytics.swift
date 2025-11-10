@@ -9,14 +9,18 @@
 import Foundation
 
 /// Cache performance metrics
-public struct CacheMetrics {
+public struct CacheMetrics: Sendable {
     public let memoryHits: Int
     public let diskHits: Int
     public let networkHits: Int
-    public let misses: Int
-    public let totalRequests: Int
-    public let averageLoadTime: TimeInterval
-    public let cacheHitRate: Double
+    public let totalMisses: Int
+    public let averageMemoryLoadTime: TimeInterval
+    public let averageDiskLoadTime: TimeInterval
+    public let averageNetworkLoadTime: TimeInterval
+    
+    public var totalRequests: Int {
+        return memoryHits + diskHits + networkHits + totalMisses
+    }
     
     public var hitRate: Double {
         guard totalRequests > 0 else { return 0.0 }
@@ -24,80 +28,68 @@ public struct CacheMetrics {
     }
 }
 
-/// Analytics tracking for cache performance
-final class CacheAnalytics {
+/// Analytics tracking for cache performance using actor for thread-safety
+actor CacheAnalytics {
     
     // MARK: - Properties
     
     private var memoryHits = 0
+    private var memoryLoadTimes: [TimeInterval] = []
+    
     private var diskHits = 0
+    private var diskLoadTimes: [TimeInterval] = []
+    
     private var networkHits = 0
+    private var networkLoadTimes: [TimeInterval] = []
+    
     private var misses = 0
-    private var totalRequests = 0
-    private var totalLoadTime: TimeInterval = 0
-    private let queue = DispatchQueue(label: "com.swiftcache.analytics")
     
     // MARK: - Tracking
     
     func trackMemoryHit(duration: TimeInterval) {
-        queue.async {
-            self.memoryHits += 1
-            self.totalRequests += 1
-            self.totalLoadTime += duration
-        }
+        memoryHits += 1
+        memoryLoadTimes.append(duration)
     }
     
     func trackDiskHit(duration: TimeInterval) {
-        queue.async {
-            self.diskHits += 1
-            self.totalRequests += 1
-            self.totalLoadTime += duration
-        }
+        diskHits += 1
+        diskLoadTimes.append(duration)
     }
     
     func trackNetworkHit(duration: TimeInterval) {
-        queue.async {
-            self.networkHits += 1
-            self.totalRequests += 1
-            self.totalLoadTime += duration
-        }
+        networkHits += 1
+        networkLoadTimes.append(duration)
     }
     
     func trackMiss() {
-        queue.async {
-            self.misses += 1
-            self.totalRequests += 1
-        }
+        misses += 1
     }
     
     // MARK: - Metrics
     
     func getMetrics() -> CacheMetrics {
-        queue.sync {
-            let avgLoadTime = totalRequests > 0 ? totalLoadTime / TimeInterval(totalRequests) : 0
-            let hitRate = totalRequests > 0 ? Double(memoryHits + diskHits + networkHits) / Double(totalRequests) : 0
-            
-            return CacheMetrics(
-                memoryHits: memoryHits,
-                diskHits: diskHits,
-                networkHits: networkHits,
-                misses: misses,
-                totalRequests: totalRequests,
-                averageLoadTime: avgLoadTime,
-                cacheHitRate: hitRate
-            )
-        }
+        let avgMemoryTime = memoryLoadTimes.isEmpty ? 0 : memoryLoadTimes.reduce(0, +) / TimeInterval(memoryLoadTimes.count)
+        let avgDiskTime = diskLoadTimes.isEmpty ? 0 : diskLoadTimes.reduce(0, +) / TimeInterval(diskLoadTimes.count)
+        let avgNetworkTime = networkLoadTimes.isEmpty ? 0 : networkLoadTimes.reduce(0, +) / TimeInterval(networkLoadTimes.count)
+        
+        return CacheMetrics(
+            memoryHits: memoryHits,
+            diskHits: diskHits,
+            networkHits: networkHits,
+            totalMisses: misses,
+            averageMemoryLoadTime: avgMemoryTime,
+            averageDiskLoadTime: avgDiskTime,
+            averageNetworkLoadTime: avgNetworkTime
+        )
     }
     
     func reset() {
-        queue.async {
-            self.memoryHits = 0
-            self.diskHits = 0
-            self.networkHits = 0
-            self.misses = 0
-            self.totalRequests = 0
-            self.totalLoadTime = 0
-        }
+        memoryHits = 0
+        memoryLoadTimes.removeAll()
+        diskHits = 0
+        diskLoadTimes.removeAll()
+        networkHits = 0
+        networkLoadTimes.removeAll()
+        misses = 0
     }
 }
-

@@ -70,9 +70,11 @@ class ViewController: UIViewController {
         ])
         
         // Configure SwiftCache
-        SwiftCache.shared.configure { config in
-            config.enableAnalytics = true
-            config.enableProgressiveLoading = true
+        Task {
+            await SwiftCache.shared.configure { config in
+                config.enableAnalytics = true
+                config.enableProgressiveLoading = true
+            }
         }
     }
     
@@ -92,31 +94,42 @@ class ViewController: UIViewController {
     }
     
     @objc private func showStats() {
-        let metrics = SwiftCache.shared.getMetrics()
-        let (memSize, diskSize) = SwiftCache.shared.getCacheSize()
-        
-        let message = """
-        Total Requests: \(metrics.totalRequests)
-        Memory Hits: \(metrics.memoryHits)
-        Disk Hits: \(metrics.diskHits)
-        Network Hits: \(metrics.networkHits)
-        Hit Rate: \(String(format: "%.1f%%", metrics.hitRate * 100))
-        Avg Load Time: \(String(format: "%.2f", metrics.averageLoadTime * 1000))ms
-        
-        Memory Cache: \(ByteCountFormatter.string(fromByteCount: Int64(memSize), countStyle: .memory))
-        Disk Cache: \(ByteCountFormatter.string(fromByteCount: diskSize, countStyle: .file))
-        """
-        
-        let alert = UIAlertController(
-            title: "SwiftCache Statistics",
-            message: message,
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "Reset", style: .destructive) { _ in
-            SwiftCache.shared.resetMetrics()
-        })
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+        Task {
+            let metrics = await SwiftCache.shared.getMetrics()
+            let cacheSize = await SwiftCache.shared.getCacheSize()
+            
+            let message = """
+            Total Requests: \(metrics.totalRequests)
+            Memory Hits: \(metrics.memoryHits)
+            Disk Hits: \(metrics.diskHits)
+            Network Hits: \(metrics.networkHits)
+            Hit Rate: \(String(format: "%.1f%%", metrics.hitRate * 100))
+            
+            Avg Memory Load: \(String(format: "%.2f", metrics.averageMemoryLoadTime * 1000))ms
+            Avg Disk Load: \(String(format: "%.2f", metrics.averageDiskLoadTime * 1000))ms
+            Avg Network Load: \(String(format: "%.2f", metrics.averageNetworkLoadTime * 1000))ms
+            
+            Memory Cache: \(ByteCountFormatter.string(fromByteCount: Int64(cacheSize.memory), countStyle: .memory))
+            Disk Cache: \(ByteCountFormatter.string(fromByteCount: Int64(cacheSize.disk), countStyle: .file))
+            """
+            
+            let alert = UIAlertController(
+                title: "SwiftCache Statistics",
+                message: message,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "Reset", style: .destructive) { [weak self] _ in
+                Task {
+                    await SwiftCache.shared.resetMetrics()
+                    self?.showStats()
+                }
+            })
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            
+            await MainActor.run {
+                present(alert, animated: true)
+            }
+        }
     }
 }
 

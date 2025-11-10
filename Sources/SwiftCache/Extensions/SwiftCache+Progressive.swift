@@ -26,49 +26,67 @@ extension SwiftCache {
     ///   - onFullImage: Called when full image is loaded
     /// - Returns: CancellationToken for the operation
     @discardableResult
-    public func loadImageProgressive(
+    public nonisolated func loadImageProgressive(
         from url: URL,
         thumbnailURL: URL? = nil,
         cacheKey: String? = nil,
         ttl: TimeInterval? = nil,
-        onThumbnail: @escaping (SCImage) -> Void,
-        onFullImage: @escaping (Result<SCImage, SwiftCacheError>) -> Void
+        onThumbnail: @escaping @Sendable @MainActor (SCImage) -> Void,
+        onFullImage: @escaping @Sendable @MainActor (Result<SCImage, SwiftCacheError>) -> Void
     ) -> CancellationToken {
-        
-        guard configuration.enableProgressiveLoading else {
-            // Progressive loading disabled, just load full image
-            return loadImage(from: url, cacheKey: cacheKey, ttl: ttl, completion: onFullImage)
-        }
         
         let token = CancellationToken()
         let key = cacheKey ?? url.absoluteString
         
-        // Step 1: Try to load thumbnail first
-        if let thumbnailURL = thumbnailURL {
-            loadImage(from: thumbnailURL, cacheKey: "\(key)_thumb", ttl: ttl) { result in
-                if case .success(let thumbnail) = result {
-                    onThumbnail(thumbnail)
+        Task {
+            let config = await configuration
+            
+            guard config.enableProgressiveLoading else {
+                // Progressive loading disabled, just load full image
+                do {
+                    let image = try await loadImage(from: url, cacheKey: cacheKey, ttl: ttl)
+                    await onFullImage(.success(image))
+                } catch {
+                    await onFullImage(.failure(error as? SwiftCacheError ?? .unknown))
+                }
+                return
+            }
+            
+            // Check if cancelled
+            if token.isCancelled { return }
+            
+            // Step 1: Try to load thumbnail first
+            if let thumbnailURL = thumbnailURL {
+                do {
+                    let thumbnail = try await loadImage(from: thumbnailURL, cacheKey: "\(key)_thumb", ttl: ttl)
+                    await onThumbnail(thumbnail)
+                } catch {
+                    // Thumbnail failed, continue to full image
                 }
                 
-                // Step 2: Load full image regardless of thumbnail result
+                // Step 2: Load full image
                 if !token.isCancelled {
-                    _ = self.loadImage(from: url, cacheKey: key, ttl: ttl, completion: onFullImage)
-                }
-            }
-        } else {
-            // Generate thumbnail from full image
-            loadImage(from: url, cacheKey: key, ttl: ttl) { result in
-                switch result {
-                case .success(let fullImage):
-                    // Generate and show thumbnail first
-                    if let thumbnail = self.generateThumbnail(from: fullImage) {
-                        onThumbnail(thumbnail)
+                    do {
+                        let fullImage = try await loadImage(from: url, cacheKey: key, ttl: ttl)
+                        await onFullImage(.success(fullImage))
+                    } catch {
+                        await onFullImage(.failure(error as? SwiftCacheError ?? .unknown))
                     }
-                    // Then show full image
-                    onFullImage(.success(fullImage))
+                }
+            } else {
+                // Generate thumbnail from full image
+                do {
+                    let fullImage = try await loadImage(from: url, cacheKey: key, ttl: ttl)
                     
-                case .failure(let error):
-                    onFullImage(.failure(error))
+                    // Generate and show thumbnail first
+                    if let thumbnail = await generateThumbnail(from: fullImage) {
+                        await onThumbnail(thumbnail)
+                    }
+                    
+                    // Then show full image
+                    await onFullImage(.success(fullImage))
+                } catch {
+                    await onFullImage(.failure(error as? SwiftCacheError ?? .unknown))
                 }
             }
         }
@@ -78,17 +96,16 @@ extension SwiftCache {
     
     // MARK: - Private Helpers
     
-    private func generateThumbnail(from image: SCImage) -> SCImage? {
+    private func generateThumbnail(from image: SCImage) async -> SCImage? {
         #if canImport(UIKit)
         let size = image.size
         let scale = configuration.progressiveThumbnailQuality
         let thumbnailSize = CGSize(width: size.width * scale, height: size.height * scale)
         
-        UIGraphicsBeginImageContextWithOptions(thumbnailSize, false, 0.0)
-        defer { UIGraphicsEndImageContext() }
-        
-        image.draw(in: CGRect(origin: .zero, size: thumbnailSize))
-        return UIGraphicsGetImageFromCurrentImageContext()
+        let renderer = UIGraphicsImageRenderer(size: thumbnailSize)
+        return renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: thumbnailSize))
+        }
         #else
         return nil
         #endif
@@ -98,6 +115,7 @@ extension SwiftCache {
 // MARK: - Progressive Loading for UIImageView
 
 #if canImport(UIKit)
+@MainActor
 extension SwiftCacheImageViewWrapper {
     
     /// Load image with progressive loading
@@ -108,7 +126,7 @@ extension SwiftCacheImageViewWrapper {
         placeholder: UIImage? = nil,
         cacheKey: String? = nil,
         ttl: TimeInterval? = nil,
-        completion: ((Result<UIImage, SwiftCacheError>) -> Void)? = nil
+        completion: (@MainActor @Sendable (Result<UIImage, SwiftCacheError>) -> Void)? = nil
     ) -> CancellationToken? {
         
         guard let imageView = imageView, let url = url else {
@@ -130,34 +148,32 @@ extension SwiftCacheImageViewWrapper {
             cacheKey: cacheKey,
             ttl: ttl,
             onThumbnail: { [weak imageView] thumbnail in
-                DispatchQueue.main.async {
-                    UIView.transition(
-                        with: imageView ?? UIView(),
-                        duration: 0.2,
-                        options: .transitionCrossDissolve,
-                        animations: {
-                            imageView?.image = thumbnail
-                        }
-                    )
-                }
+                guard let imageView = imageView else { return }
+                UIView.transition(
+                    with: imageView,
+                    duration: 0.2,
+                    options: .transitionCrossDissolve,
+                    animations: {
+                        imageView.image = thumbnail
+                    }
+                )
             },
             onFullImage: { [weak imageView] result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let image):
-                        UIView.transition(
-                            with: imageView ?? UIView(),
-                            duration: 0.3,
-                            options: .transitionCrossDissolve,
-                            animations: {
-                                imageView?.image = image
-                            }
-                        )
-                        completion?(.success(image))
-                        
-                    case .failure(let error):
-                        completion?(.failure(error))
-                    }
+                guard let imageView = imageView else { return }
+                switch result {
+                case .success(let image):
+                    UIView.transition(
+                        with: imageView,
+                        duration: 0.3,
+                        options: .transitionCrossDissolve,
+                        animations: {
+                            imageView.image = image
+                        }
+                    )
+                    completion?(.success(image))
+                    
+                case .failure(let error):
+                    completion?(.failure(error))
                 }
             }
         )
@@ -167,4 +183,3 @@ extension SwiftCacheImageViewWrapper {
     }
 }
 #endif
-

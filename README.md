@@ -8,19 +8,28 @@
 
 A modern, lightweight image caching library for iOS and macOS. Built with 100% Apple native APIs—zero dependencies.
 
+<p align="center">
+  <img src="assets/demo-app.png" alt="SwiftCache Demo" width="300"/>
+  <img src="assets/stats-screen.png" alt="Performance Stats" width="300"/>
+</p>
+
 ## 🌟 Features
 
 - ✅ **Zero Dependencies** - Pure Swift, no third-party frameworks
-- ✅ **Lightweight** - Optimized for performance and app size
+- ✅ **Lightweight** - Optimized for performance and app size (~150KB)
+- ✅ **Cross-Platform** - Full support for iOS, macOS, tvOS, and watchOS
 - ✅ **TTL Support** - Automatic cache expiration with customizable time-to-live
-- ✅ **Three-Tier Caching** - Memory → Disk → Network with automatic fallback
+- ✅ **Three-Tier Caching** - Memory → Disk → Network with Chain of Responsibility pattern
 - ✅ **Progressive Loading** - Show thumbnails while loading full images
+- ✅ **Automatic Downscaling** - Reduce memory usage on both iOS and macOS
 - ✅ **Lifecycle Aware** - Automatically manages memory in background/foreground
-- ✅ **Thread Safe** - Built on NSCache and DispatchQueue
-- ✅ **Modern Swift** - Async/await support, SwiftUI integration
+- ✅ **Thread Safe** - Built with Swift Concurrency (actors) and async/await
+- ✅ **Modern Swift** - Actor-based architecture, no GCD mixing
+- ✅ **Extensible** - Strategy pattern allows custom cache implementations
 - ✅ **Cancellable Requests** - Cancel downloads when cells are reused
 - ✅ **LRU Eviction** - Automatic cleanup of old cached images
 - ✅ **Analytics** - Built-in performance metrics and cache statistics
+- ✅ **Swift 6 Ready** - Full Sendable conformance and strict concurrency
 
 ## 📦 Installation
 
@@ -98,8 +107,41 @@ SwiftCache.shared.configure { config in
     config.diskCacheLimit = 1024 * 1024 * 1024   // 1GB
     config.defaultTTL = 86400                     // 24 hours
     config.enableAnalytics = true
+    
+    // Enable automatic downscaling (works on iOS and macOS)
+    config.maxImageDimension = 2048              // Max 2048px on longest side
 }
 ```
+
+## 🔌 Extensibility with Custom Loaders
+
+SwiftCache uses the **Strategy Pattern** to allow custom implementations for each cache layer:
+
+```swift
+// Create a custom memory loader
+class MyCustomMemoryLoader: CacheLoader {
+    func load(key: String, url: URL, ttl: TimeInterval) async -> SCImage? {
+        // Your custom memory cache implementation
+    }
+    
+    func store(image: SCImage, key: String, ttl: TimeInterval) async {
+        // Your custom storage logic
+    }
+    
+    func clear() async {
+        // Your custom clear logic
+    }
+}
+
+// Set custom loaders
+await SwiftCache.shared.setCustomLoaders([
+    MyCustomMemoryLoader(),
+    MyCustomDiskLoader(),
+    MyCustomNetworkLoader()
+])
+```
+
+This makes SwiftCache incredibly flexible - use your own cache backends, network layers, or storage mechanisms!
 
 ## 📊 Performance
 
@@ -113,7 +155,39 @@ SwiftCache.shared.configure { config in
 
 - [Getting Started Guide](Documentation/getting-started.md)
 - [Migration from Kingfisher](Documentation/migration-guide.md)
+- [Architecture Guide](Documentation/architecture-guide.md)
 - [Demo App Example](DemoApp/)
+
+## 🗺️ Roadmap
+
+### v2.1.0 (Next Release)
+- [ ] **Combine Support** - Publishers for reactive programming
+- [ ] **GIF Animation Support** - Animated image caching
+- [ ] **WebP Format Support** - Modern image format
+- [ ] **Custom Image Processors** - Transform images before caching
+- [ ] **Network Reachability** - Pause downloads when offline
+
+### v2.2.0
+- [ ] **Prefetching API** - Intelligent prefetch with priority
+- [ ] **Image Placeholders** - Blurhash/ThumbHash support
+- [ ] **Cache Warming** - Preload frequently used images
+- [ ] **Memory Pressure Monitoring** - Adaptive cache limits
+
+### v3.0.0 (Major)
+- [ ] **Advanced Transformations** - Resize, crop, filters, effects
+- [ ] **Video Thumbnail Caching** - Extract and cache video frames
+- [ ] **CloudKit Sync** - Sync cache across devices
+- [ ] **Custom Disk Paths** - Multi-level disk cache
+- [ ] **SwiftData Integration** - Modern persistence layer
+
+### Future Considerations
+- [ ] **AVIF Format Support** - Next-gen image format
+- [ ] **HEIF/HEIC Optimization** - Native Apple format improvements
+- [ ] **Background Downloads** - URLSession background transfer
+- [ ] **Smart Cache Eviction** - ML-based prediction
+- [ ] **CDN Integration** - Cloudflare, CloudFront adapters
+
+Want a feature? [Open an issue](https://github.com/SudhirGadhvi/SwiftCache-SDK/issues)!
 
 ## 🤝 Contributing
 

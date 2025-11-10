@@ -11,6 +11,7 @@ import UIKit
 
 // MARK: - SwiftCache UIImageView Wrapper
 
+@MainActor
 public struct SwiftCacheImageViewWrapper {
     internal weak var imageView: UIImageView?
     internal var currentToken: CancellationToken?
@@ -35,7 +36,7 @@ public struct SwiftCacheImageViewWrapper {
         cacheKey: String? = nil,
         ttl: TimeInterval? = nil,
         transition: TimeInterval = 0.2,
-        completion: ((Result<UIImage, SwiftCacheError>) -> Void)? = nil
+        completion: (@MainActor @Sendable (Result<UIImage, SwiftCacheError>) -> Void)? = nil
     ) -> CancellationToken? {
         
         guard let imageView = imageView, let url = url else {
@@ -47,25 +48,28 @@ public struct SwiftCacheImageViewWrapper {
         // Cancel previous request
         currentToken?.cancel()
         
-        // Set placeholder immediately
+        // Set placeholder immediately (already on MainActor)
         imageView.image = placeholder
         
         // Load image
         let token = SwiftCache.shared.loadImage(from: url, cacheKey: cacheKey, ttl: ttl) { [weak imageView] result in
-            DispatchQueue.main.async {
+            // Completion is already called on background, we need to dispatch to main
+            Task { @MainActor in
+                guard let imageView = imageView else { return }
+                
                 switch result {
                 case .success(let image):
                     if transition > 0 {
                         UIView.transition(
-                            with: imageView ?? UIView(),
+                            with: imageView,
                             duration: transition,
                             options: .transitionCrossDissolve,
                             animations: {
-                                imageView?.image = image
+                                imageView.image = image
                             }
                         )
                     } else {
-                        imageView?.image = image
+                        imageView.image = image
                     }
                     completion?(.success(image))
                     
@@ -90,6 +94,7 @@ public struct SwiftCacheImageViewWrapper {
 extension UIImageView {
     
     /// SwiftCache convenience accessor
+    @MainActor
     public var sc: SwiftCacheImageViewWrapper {
         return SwiftCacheImageViewWrapper(imageView: self)
     }
@@ -100,7 +105,7 @@ extension UIImageView {
 @available(iOS 15.0, *)
 extension SwiftCacheImageViewWrapper {
     
-    /// Load and set image with async/await
+    /// Load and set image with async/await (proper implementation without await MainActor.run)
     ///
     /// - Parameters:
     ///   - url: The URL of the image to load
@@ -120,38 +125,29 @@ extension SwiftCacheImageViewWrapper {
     ) async throws -> UIImage {
         
         guard let imageView = imageView, let url = url else {
-            await MainActor.run {
-                imageView?.image = placeholder
-            }
+            // Already on MainActor, no need for await MainActor.run
+            imageView?.image = placeholder
             throw SwiftCacheError.invalidURL
         }
         
-        // Set placeholder immediately
-        await MainActor.run {
-            imageView.image = placeholder
-        }
+        // Set placeholder immediately (already on MainActor)
+        imageView.image = placeholder
         
-        // Load image using continuation
-        let image = try await withCheckedThrowingContinuation { continuation in
-            SwiftCache.shared.loadImage(from: url, cacheKey: cacheKey, ttl: ttl) { result in
-                continuation.resume(with: result)
-            }
-        }
+        // Load image (this suspends and switches off MainActor)
+        let image = try await SwiftCache.shared.loadImage(from: url, cacheKey: cacheKey, ttl: ttl)
         
-        // Set image with transition
-        await MainActor.run {
-            if transition > 0 {
-                UIView.transition(
-                    with: imageView,
-                    duration: transition,
-                    options: .transitionCrossDissolve,
-                    animations: {
-                        imageView.image = image
-                    }
-                )
-            } else {
-                imageView.image = image
-            }
+        // Back on MainActor automatically due to @MainActor annotation
+        if transition > 0 {
+            UIView.transition(
+                with: imageView,
+                duration: transition,
+                options: .transitionCrossDissolve,
+                animations: {
+                    imageView.image = image
+                }
+            )
+        } else {
+            imageView.image = image
         }
         
         return image
@@ -159,4 +155,3 @@ extension SwiftCacheImageViewWrapper {
 }
 
 #endif
-

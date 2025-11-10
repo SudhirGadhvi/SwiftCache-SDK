@@ -20,6 +20,7 @@ public struct CachedImage<Placeholder: View>: View {
     
     @State private var image: SCImage?
     @State private var isLoading = false
+    @State private var loadTask: Task<Void, Never>?
     
     public init(
         url: URL?,
@@ -53,25 +54,45 @@ public struct CachedImage<Placeholder: View>: View {
         .onChange(of: url) { _ in
             loadImage()
         }
+        .onDisappear {
+            // Cancel loading when view disappears
+            loadTask?.cancel()
+        }
     }
     
     private func loadImage() {
         guard let url = url else { return }
         
+        // Cancel previous task
+        loadTask?.cancel()
+        
         isLoading = true
         
-        SwiftCache.shared.loadImage(
-            from: url,
-            cacheKey: cacheKey,
-            ttl: ttl,
-            placeholder: nil
-        ) { result in
-            DispatchQueue.main.async {
-                isLoading = false
-                if case .success(let loadedImage) = result {
+        // Use structured concurrency properly
+        loadTask = Task {
+            do {
+                let loadedImage = try await SwiftCache.shared.loadImage(
+                    from: url,
+                    cacheKey: cacheKey,
+                    ttl: ttl
+                )
+                
+                // Check for cancellation
+                guard !Task.isCancelled else { return }
+                
+                // Update UI on MainActor
+                await MainActor.run {
                     withAnimation {
                         image = loadedImage
+                        isLoading = false
                     }
+                }
+            } catch {
+                // Check for cancellation
+                guard !Task.isCancelled else { return }
+                
+                await MainActor.run {
+                    isLoading = false
                 }
             }
         }
