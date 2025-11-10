@@ -102,14 +102,16 @@ struct ContentView: View {
 
 ```swift
 // Configure global settings
-SwiftCache.shared.configure { config in
-    config.memoryCacheLimit = 100 * 1024 * 1024  // 100MB
-    config.diskCacheLimit = 1024 * 1024 * 1024   // 1GB
-    config.defaultTTL = 86400                     // 24 hours
-    config.enableAnalytics = true
-    
-    // Enable automatic downscaling (works on iOS and macOS)
-    config.maxImageDimension = 2048              // Max 2048px on longest side
+Task {
+    await SwiftCache.shared.configure { config in
+        config.memoryCacheLimit = 100 * 1024 * 1024  // 100MB
+        config.diskCacheLimit = 1024 * 1024 * 1024   // 1GB
+        config.defaultTTL = 86400                     // 24 hours
+        config.enableAnalytics = true
+        
+        // Enable automatic downscaling (works on iOS and macOS)
+        config.maxImageDimension = 2048              // Max 2048px on longest side
+    }
 }
 ```
 
@@ -118,10 +120,11 @@ SwiftCache.shared.configure { config in
 SwiftCache uses the **Strategy Pattern** to allow custom implementations for each cache layer:
 
 ```swift
-// Create a custom memory loader
-class MyCustomMemoryLoader: CacheLoader {
+// Create a custom loader (must be an actor)
+actor MyCustomMemoryLoader: CacheLoader {
     func load(key: String, url: URL, ttl: TimeInterval) async -> SCImage? {
         // Your custom memory cache implementation
+        return nil
     }
     
     func store(image: SCImage, key: String, ttl: TimeInterval) async {
@@ -133,12 +136,14 @@ class MyCustomMemoryLoader: CacheLoader {
     }
 }
 
-// Set custom loaders
-await SwiftCache.shared.setCustomLoaders([
-    MyCustomMemoryLoader(),
-    MyCustomDiskLoader(),
-    MyCustomNetworkLoader()
-])
+// Set custom loaders (async call)
+Task {
+    await SwiftCache.shared.setCustomLoaders([
+        MyCustomMemoryLoader(),
+        MyCustomDiskLoader(),
+        MyCustomNetworkLoader()
+    ])
+}
 ```
 
 This makes SwiftCache incredibly flexible - use your own cache backends, network layers, or storage mechanisms!
