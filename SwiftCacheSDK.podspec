@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name             = 'SwiftCache'
+  s.name             = 'SwiftCacheSDK'
   s.version          = '2.0.0'
   s.summary          = 'A modern, actor-based image caching library for iOS and macOS'
   s.description      = <<-DESC
@@ -15,8 +15,8 @@ pluggable Strategy pattern for custom loaders, and full macOS support with image
 
   s.ios.deployment_target = '14.0'
   s.osx.deployment_target = '12.0'
-  s.tvos.deployment_target = '14.0'
-  s.watchos.deployment_target = '7.0'
+  # s.tvos.deployment_target = '14.0'  # Temporarily disabled for CocoaPods publication
+  # s.watchos.deployment_target = '7.0'  # Temporarily disabled for CocoaPods publication
 
   s.swift_version = '5.9'
   
@@ -25,7 +25,7 @@ pluggable Strategy pattern for custom loaders, and full macOS support with image
   s.frameworks = 'Foundation'
   s.ios.frameworks = 'UIKit'
   s.osx.frameworks = 'AppKit'
-  s.tvos.frameworks = 'UIKit'
-  s.watchos.frameworks = 'WatchKit'
+  # s.tvos.frameworks = 'UIKit'
+  # s.watchos.frameworks = 'WatchKit'
 end
 
