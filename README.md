@@ -83,20 +83,29 @@ Task {
 
 ### SwiftUI
 
+**Modern SwiftUI (iOS 15+):**
+
 ```swift
+import SwiftUI
 import SwiftCache
 
 struct ContentView: View {
     var body: some View {
-        CachedImage(url: imageURL)
-            .placeholder {
+        NavigationStack {
+            CachedImage(url: imageURL) {
                 ProgressView()
             }
-            .transition(.opacity)
             .frame(width: 300, height: 300)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
     }
 }
 ```
+
+**Key modern features:**
+- Uses `.task(id:)` for automatic cancellation and restart on URL changes
+- No manual `MainActor.run` calls - proper SwiftUI integration
+- Follows modern SwiftUI patterns (iOS 15+)
 
 ## ⚙️ Configuration
 

@@ -29,7 +29,7 @@ struct ContentView: View {
     ]
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(imageURLs, id: \.self) { url in
@@ -39,7 +39,7 @@ struct ContentView: View {
                         }
                         .aspectRatio(1, contentMode: .fill)
                         .clipped()
-                        .cornerRadius(8)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         .frame(height: 200)
                     }
                 }
@@ -63,12 +63,10 @@ struct ContentView: View {
                 StatsView()
             }
         }
-        .onAppear {
-            Task {
-                await SwiftCache.shared.configure { config in
-                    config.enableAnalytics = true
-                    config.enableProgressiveLoading = true
-                }
+        .task {
+            await SwiftCache.shared.configure { config in
+                config.enableAnalytics = true
+                config.enableProgressiveLoading = true
             }
         }
     }
@@ -81,64 +79,44 @@ struct StatsView: View {
     @State private var cacheSize: (memory: Int, disk: Int64)?
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section("Performance") {
                     if let metrics = metrics {
-                        HStack {
-                            Text("Total Requests")
-                            Spacer()
+                        LabeledContent("Total Requests") {
                             Text("\(metrics.totalRequests)")
-                                .foregroundColor(.secondary)
                         }
                         
-                        HStack {
-                            Text("Memory Hits")
-                            Spacer()
+                        LabeledContent("Memory Hits") {
                             Text("\(metrics.memoryHits)")
-                                .foregroundColor(.green)
+                                .foregroundStyle(.green)
                         }
                         
-                        HStack {
-                            Text("Disk Hits")
-                            Spacer()
+                        LabeledContent("Disk Hits") {
                             Text("\(metrics.diskHits)")
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                         }
                         
-                        HStack {
-                            Text("Network Hits")
-                            Spacer()
+                        LabeledContent("Network Hits") {
                             Text("\(metrics.networkHits)")
-                                .foregroundColor(.orange)
+                                .foregroundStyle(.orange)
                         }
                         
-                        HStack {
-                            Text("Hit Rate")
-                            Spacer()
+                        LabeledContent("Hit Rate") {
                             Text(String(format: "%.1f%%", metrics.hitRate * 100))
-                                .foregroundColor(.green)
+                                .foregroundStyle(.green)
                         }
                         
-                        HStack {
-                            Text("Avg Memory Load")
-                            Spacer()
+                        LabeledContent("Avg Memory Load") {
                             Text(String(format: "%.2fms", metrics.averageMemoryLoadTime * 1000))
-                                .foregroundColor(.secondary)
                         }
                         
-                        HStack {
-                            Text("Avg Disk Load")
-                            Spacer()
+                        LabeledContent("Avg Disk Load") {
                             Text(String(format: "%.2fms", metrics.averageDiskLoadTime * 1000))
-                                .foregroundColor(.secondary)
                         }
                         
-                        HStack {
-                            Text("Avg Network Load")
-                            Spacer()
+                        LabeledContent("Avg Network Load") {
                             Text(String(format: "%.2fms", metrics.averageNetworkLoadTime * 1000))
-                                .foregroundColor(.secondary)
                         }
                     } else {
                         ProgressView()
@@ -147,18 +125,12 @@ struct StatsView: View {
                 
                 Section("Storage") {
                     if let cacheSize = cacheSize {
-                        HStack {
-                            Text("Memory Cache")
-                            Spacer()
+                        LabeledContent("Memory Cache") {
                             Text(ByteCountFormatter.string(fromByteCount: Int64(cacheSize.memory), countStyle: .memory))
-                                .foregroundColor(.secondary)
                         }
                         
-                        HStack {
-                            Text("Disk Cache")
-                            Spacer()
+                        LabeledContent("Disk Cache") {
                             Text(ByteCountFormatter.string(fromByteCount: cacheSize.disk, countStyle: .file))
-                                .foregroundColor(.secondary)
                         }
                     } else {
                         ProgressView()
@@ -166,13 +138,12 @@ struct StatsView: View {
                 }
                 
                 Section {
-                    Button("Reset Metrics") {
+                    Button("Reset Metrics", role: .destructive) {
                         Task {
                             await SwiftCache.shared.resetMetrics()
                             await loadStats()
                         }
                     }
-                    .foregroundColor(.red)
                 }
             }
             .navigationTitle("SwiftCache Stats")

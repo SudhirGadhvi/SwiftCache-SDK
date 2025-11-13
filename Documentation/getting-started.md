@@ -57,45 +57,74 @@ Task {
 
 ### SwiftUI
 
+**Modern SwiftUI (iOS 15+):**
+
 ```swift
+import SwiftUI
 import SwiftCache
 
 struct MyView: View {
     let imageURL: URL
     
     var body: some View {
-        CachedImage(url: imageURL) {
-            ProgressView()
+        NavigationStack {
+            CachedImage(url: imageURL) {
+                ProgressView()
+            }
+            .frame(width: 300, height: 300)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .frame(width: 300, height: 300)
+        .task {
+            // Configure cache when view appears
+            await SwiftCache.shared.configure { config in
+                config.enableAnalytics = true
+                config.enableProgressiveLoading = true
+            }
+        }
     }
 }
 ```
 
+**Key features:**
+- Uses modern `.task` modifier instead of `.onAppear` + `Task`
+- Automatic cancellation when view disappears
+- Task automatically restarts when URL changes
+- Native SwiftUI async/await integration
+
 ## Configuration
 
-Customize SwiftCache behavior:
+Customize SwiftCache behavior using modern async/await:
 
 ```swift
-SwiftCache.shared.configure { config in
-    // Memory cache settings
-    config.memoryCacheLimit = 100 * 1024 * 1024  // 100MB
-    config.memoryCacheCountLimit = 150            // 150 images
-    
-    // Disk cache settings
-    config.diskCacheLimit = 1024 * 1024 * 1024   // 1GB
-    config.diskCacheMaxAge = 7 * 24 * 60 * 60     // 7 days
-    
-    // TTL settings
-    config.defaultTTL = 3600                      // 1 hour
-    
-    // Features
-    config.enableProgressiveLoading = true
-    config.enableAnalytics = true
-    
-    // Memory management
-    config.reduceMemoryInBackground = true
-    config.backgroundMemoryCacheLimit = 20 * 1024 * 1024  // 20MB
+// Modern approach: Use .task modifier
+.task {
+    await SwiftCache.shared.configure { config in
+        // Memory cache settings
+        config.memoryCacheLimit = 100 * 1024 * 1024  // 100MB
+        config.memoryCacheCountLimit = 150            // 150 images
+        
+        // Disk cache settings
+        config.diskCacheLimit = 1024 * 1024 * 1024   // 1GB
+        config.diskCacheMaxAge = 7 * 24 * 60 * 60     // 7 days
+        
+        // TTL settings
+        config.defaultTTL = 3600                      // 1 hour
+        
+        // Features
+        config.enableProgressiveLoading = true
+        config.enableAnalytics = true
+        
+        // Memory management
+        config.reduceMemoryInBackground = true
+        config.backgroundMemoryCacheLimit = 20 * 1024 * 1024  // 20MB
+    }
+}
+
+// Or in AppDelegate/App struct
+Task {
+    await SwiftCache.shared.configure { config in
+        // ... configuration
+    }
 }
 ```
 
@@ -117,20 +146,32 @@ imageView.sc.setImageProgressive(with: fullImageURL)
 ## Cache Management
 
 ```swift
-// Clear all caches
+// UIKit - Clear all caches
 SwiftCache.shared.clearCache()
 
 // Clear only expired entries
 SwiftCache.shared.clearExpiredCache()
 
-// Get cache size
-let (memorySize, diskSize) = SwiftCache.shared.getCacheSize()
-print("Memory: \(memorySize), Disk: \(diskSize)")
+// SwiftUI - Use async/await in task or button action
+Button("Clear Cache") {
+    SwiftCache.shared.clearCache()
+}
 
-// Get performance metrics
-let metrics = SwiftCache.shared.getMetrics()
-print("Hit rate: \(metrics.hitRate * 100)%")
-print("Avg load time: \(metrics.averageLoadTime * 1000)ms")
+Button("Clear Expired") {
+    SwiftCache.shared.clearExpiredCache()
+}
+
+// Get cache size (async)
+.task {
+    let (memorySize, diskSize) = await SwiftCache.shared.getCacheSize()
+    print("Memory: \(memorySize), Disk: \(diskSize)")
+}
+
+// Get performance metrics (async)
+.task {
+    let metrics = await SwiftCache.shared.getMetrics()
+    print("Hit rate: \(metrics.hitRate * 100)%")
+}
 ```
 
 ## Advanced Usage
@@ -179,6 +220,41 @@ override func prepareForReuse() {
 ```
 
 ## Best Practices
+
+### Modern SwiftUI (iOS 15+)
+
+1. **Use `NavigationStack` instead of `NavigationView`**
+   ```swift
+   NavigationStack {
+       // Your content
+   }
+   ```
+
+2. **Use `.task` instead of `.onAppear` for async work**
+   ```swift
+   .task {
+       await loadData()
+   }
+   ```
+
+3. **Use `LabeledContent` for label-value pairs**
+   ```swift
+   LabeledContent("Cache Size") {
+       Text("\(size) MB")
+   }
+   ```
+
+4. **Use `.clipShape()` instead of `.cornerRadius()`**
+   ```swift
+   .clipShape(RoundedRectangle(cornerRadius: 8))
+   ```
+
+5. **Use `.foregroundStyle()` instead of `.foregroundColor()`**
+   ```swift
+   .foregroundStyle(.secondary)
+   ```
+
+### General Best Practices
 
 1. **Configure Once**: Set up SwiftCache in your AppDelegate or App struct
 2. **Use TTL**: Set appropriate TTL based on your content freshness requirements

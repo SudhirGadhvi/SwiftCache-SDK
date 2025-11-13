@@ -9,8 +9,8 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-/// A SwiftUI view that displays a cached image
-@available(iOS 14.0, macOS 12.0, tvOS 14.0, watchOS 7.0, *)
+/// A SwiftUI view that displays a cached image with modern SwiftUI patterns
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 public struct CachedImage<Placeholder: View>: View {
     
     private let url: URL?
@@ -20,7 +20,6 @@ public struct CachedImage<Placeholder: View>: View {
     
     @State private var image: SCImage?
     @State private var isLoading = false
-    @State private var loadTask: Task<Void, Never>?
     
     public init(
         url: URL?,
@@ -48,60 +47,43 @@ public struct CachedImage<Placeholder: View>: View {
                 placeholder
             }
         }
-        .onAppear {
-            loadImage()
-        }
-        .onChange(of: url) { _ in
-            loadImage()
-        }
-        .onDisappear {
-            // Cancel loading when view disappears
-            loadTask?.cancel()
+        .task(id: url) {
+            await loadImage()
         }
     }
     
-    private func loadImage() {
+    private func loadImage() async {
         guard let url = url else { return }
-        
-        // Cancel previous task
-        loadTask?.cancel()
         
         isLoading = true
         
-        // Use structured concurrency properly
-        loadTask = Task {
-            do {
-                let loadedImage = try await SwiftCache.shared.loadImage(
-                    from: url,
-                    cacheKey: cacheKey,
-                    ttl: ttl
-                )
-                
-                // Check for cancellation
-                guard !Task.isCancelled else { return }
-                
-                // Update UI on MainActor
-                await MainActor.run {
-                    withAnimation {
-                        image = loadedImage
-                        isLoading = false
-                    }
-                }
-            } catch {
-                // Check for cancellation
-                guard !Task.isCancelled else { return }
-                
-                await MainActor.run {
-                    isLoading = false
-                }
+        do {
+            let loadedImage = try await SwiftCache.shared.loadImage(
+                from: url,
+                cacheKey: cacheKey,
+                ttl: ttl
+            )
+            
+            // Check for cancellation before updating state
+            guard !Task.isCancelled else { return }
+            
+            // Already on MainActor due to @State access
+            withAnimation {
+                image = loadedImage
+                isLoading = false
             }
+        } catch {
+            // Check for cancellation
+            guard !Task.isCancelled else { return }
+            
+            isLoading = false
         }
     }
 }
 
 // MARK: - Convenience Initializers
 
-@available(iOS 14.0, macOS 12.0, tvOS 14.0, watchOS 7.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 extension CachedImage where Placeholder == EmptyView {
     public init(url: URL?, cacheKey: String? = nil, ttl: TimeInterval? = nil) {
         self.init(url: url, cacheKey: cacheKey, ttl: ttl) {
@@ -110,7 +92,7 @@ extension CachedImage where Placeholder == EmptyView {
     }
 }
 
-@available(iOS 14.0, macOS 12.0, tvOS 14.0, watchOS 7.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 extension CachedImage where Placeholder == ProgressView<EmptyView, EmptyView> {
     public init(url: URL?, cacheKey: String? = nil, ttl: TimeInterval? = nil, showProgress: Bool = true) {
         self.init(url: url, cacheKey: cacheKey, ttl: ttl) {
