@@ -60,6 +60,24 @@ public struct CacheConfiguration {
     
     /// Memory cache limit when app is in background (default: 20MB)
     public var backgroundMemoryCacheLimit: Int = 20 * 1024 * 1024
+
+    // MARK: - Adaptive Cache Policy Settings
+
+    /// Enable adaptive cache policy tuning based on runtime cache telemetry.
+    /// Disabled by default to preserve deterministic static configuration behavior.
+    public var enableAdaptiveCachePolicy: Bool = false
+
+    /// Minimum seconds between adaptive policy evaluations (default: 30 minutes).
+    public var adaptivePolicyEvaluationInterval: TimeInterval = 30 * 60
+
+    /// Minimum number of requests required before evaluating adaptive policy (default: 60).
+    public var adaptivePolicyMinimumRequests: Int = 60
+
+    /// Lower bound for adaptive default TTL updates (default: 5 minutes).
+    public var adaptivePolicyMinTTL: TimeInterval = 5 * 60
+
+    /// Upper bound for adaptive default TTL updates (default: 7 days).
+    public var adaptivePolicyMaxTTL: TimeInterval = 7 * 24 * 60 * 60
     
     // MARK: - Image Processing Settings
     

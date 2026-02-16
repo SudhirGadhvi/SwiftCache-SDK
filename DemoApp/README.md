@@ -9,7 +9,7 @@ Example iOS app demonstrating SwiftCache features.
 1. **Create a new iOS App project** in Xcode
 2. **Add SwiftCache package:**
    - File → Add Package Dependencies...
-   - Enter: `https://github.com/YOUR_USERNAME/SwiftCache`
+   - Enter: `https://github.com/SudhirGadhvi/SwiftCache-SDK`
    - Select version and add
 3. **Copy the demo files:**
    - Use `SwiftCacheDemoApp.swift` as your App file
@@ -35,6 +35,7 @@ Just copy the code from `ContentView.swift` into a new SwiftUI project and impor
   - Cache sizes
 - **Cache Management**: Clear cache button
 - **Progressive Loading**: Smooth image loading experience
+- **Adaptive Policy (Optional)**: Configure telemetry-driven cache tuning for real apps
 
 ## 🧪 Testing the Cache
 
@@ -58,4 +59,4 @@ Just copy the code from `ContentView.swift` into a new SwiftUI project and impor
 
 ---
 
-**Note:** Update the GitHub URL in the instructions above once you publish SwiftCache!
+**Tip:** For app-specific performance tuning, enable adaptive policy in your app-level `SwiftCache.shared.configure { ... }`.

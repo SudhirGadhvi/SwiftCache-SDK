@@ -93,16 +93,29 @@ public actor DiskLoader: CacheLoader {
         try? fileManager.removeItem(at: cacheDirectory)
         await createCacheDirectory()
     }
+
+    /// Remove files older than the specified age.
+    /// - Returns: Number of files removed.
+    public func clearExpiredEntries(olderThan maxAge: TimeInterval) async -> Int {
+        let now = Date()
+        var removedCount = 0
+
+        for fileURL in listCachedFiles(with: [.contentModificationDateKey]) {
+            let modifiedAt = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            if now.timeIntervalSince(modifiedAt) > maxAge {
+                if (try? fileManager.removeItem(at: fileURL)) != nil {
+                    removedCount += 1
+                }
+            }
+        }
+
+        return removedCount
+    }
     
     private func calculateDiskSize() -> Int64 {
         var totalSize: Int64 = 0
-        
-        guard let files = try? fileManager.contentsOfDirectory(
-            at: cacheDirectory,
-            includingPropertiesForKeys: [.fileSizeKey],
-            options: []
-        ) else { return 0 }
-        
+
+        let files = listCachedFiles(with: [.fileSizeKey])
         for fileURL in files {
             if let attributes = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
                let fileSize = attributes.fileSize {
@@ -118,11 +131,8 @@ public actor DiskLoader: CacheLoader {
         guard currentSize > configuration.diskCacheLimit else { return }
         
         // Perform LRU cleanup
-        guard let files = try? fileManager.contentsOfDirectory(
-            at: cacheDirectory,
-            includingPropertiesForKeys: [.contentAccessDateKey, .fileSizeKey],
-            options: []
-        ) else { return }
+        let files = listCachedFiles(with: [.contentAccessDateKey, .fileSizeKey])
+        guard !files.isEmpty else { return }
         
         // Sort by access date (oldest first)
         let sortedFiles = files.sorted { file1, file2 in
@@ -147,6 +157,14 @@ public actor DiskLoader: CacheLoader {
     
     public func getDiskSize() -> Int64 {
         return calculateDiskSize()
+    }
+
+    private func listCachedFiles(with keys: [URLResourceKey]) -> [URL] {
+        return (try? fileManager.contentsOfDirectory(
+            at: cacheDirectory,
+            includingPropertiesForKeys: keys,
+            options: []
+        )) ?? []
     }
 }
 

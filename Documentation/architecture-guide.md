@@ -158,6 +158,26 @@ public final class CancellationToken: @unchecked Sendable {
 }
 ```
 
+### 5. Adaptive Cache Policy (Caching-First Intelligence)
+
+SwiftCache can optionally run an adaptive policy loop that tunes cache configuration based on
+real cache telemetry (hit rates + latency), while keeping strict bounds so behavior stays predictable.
+
+**Design goals:**
+- Keep request hot-path deterministic and fast
+- Evaluate policy in periodic windows, not on every request
+- Apply only bounded configuration updates (TTL and cache limits)
+- Preserve backward compatibility when disabled
+
+**Planner/Executor style flow:**
+1. Collect telemetry in the cache runtime
+2. Build a policy recommendation
+3. Validate against safety limits
+4. Reconfigure loaders with the updated cache configuration
+
+This pattern aligns with modern "planner/executor" agent workflows, but remains fully local and
+caching-focused for SDK use cases.
+
 ## Migration Guide (v1 → v2)
 
 ### Breaking Changes
@@ -216,6 +236,12 @@ public final class CancellationToken: @unchecked Sendable {
 - Actors use efficient queuing
 - No context switching overhead for same-actor calls
 - Better than GCD for structured concurrency
+
+### Adaptive Policy Overhead
+
+- Policy evaluation uses batched windows to avoid per-request model or rule overhead
+- Hot path remains memory/disk/network lookup and decode work
+- Adaptive loop is optional and disabled by default
 
 ### When to Use `nonisolated`
 
