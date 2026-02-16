@@ -44,6 +44,19 @@ Just copy the code from `ContentView.swift` into a new SwiftUI project and impor
 3. **Close and reopen app:** Images load from disk cache (fast)
 4. **Tap "Clear" and reload:** Images download from network again
 
+## 📈 Understanding Adaptive Metrics
+
+When **Adaptive Policy** is enabled in the demo:
+
+- **Adaptive Window** = recent telemetry window used for policy decisions.
+- **Window Requests** = requests collected in the current window.
+- **Window Hit Rate** = successful loads across memory + disk + network.
+- **Window Cache Hit** = local cache-only hit rate (memory + disk), the key cache efficiency signal.
+- **Window Miss Rate** = failed requests.
+- **Evaluate Adaptive Policy Now** = trigger immediate policy evaluation using current telemetry.
+
+Tip for first-run behavior: it is normal to see high overall hit rate with low cache hit rate, because successful network loads count in overall hit rate while cache is still cold.
+
 ## 📝 Files Included
 
 - **`SwiftCacheDemoApp.swift`** - App entry point
@@ -56,6 +69,7 @@ Just copy the code from `ContentView.swift` into a new SwiftUI project and impor
 - The demo uses picsum.photos for random test images
 - Tap "Stats" to see detailed performance metrics
 - Use "Clear" to test cache behavior from scratch
+- Use "Evaluate Adaptive Policy Now" after enough requests to test adaptive decisions quickly
 
 ---
 

@@ -154,6 +154,29 @@ Task {
 
 You can also provide a custom adaptive policy engine if you want to plug in app-specific or on-device Foundation Models logic.
 
+### Understanding the Stats Screen
+
+The adaptive section in the demo screen shows:
+
+- **Adaptive Window**: A rolling telemetry window used by adaptive policy. It tracks recent request behavior until the next policy evaluation or reset.
+- **Window Requests**: Number of requests collected in the current adaptive window.
+- **Window Hit Rate**: Overall successful loads across all layers (memory + disk + network).  
+  On first run, this can be high even when cache is cold because network responses are successful loads.
+- **Window Cache Hit**: Local cache-only hit rate (memory + disk). This is the key metric for cache efficiency.
+- **Window Miss Rate**: Requests that failed to load.
+- **Avg Load Time**: Average response time in the adaptive window.
+- **Evaluate Adaptive Policy Now**: Forces an immediate policy evaluation using current window telemetry.
+
+### How Developers Should Use Adaptive Policy
+
+1. Start with your normal cache configuration and enable adaptive policy.
+2. Use app flows that represent real usage (feeds, detail pages, repeated scrolling).
+3. Compare behavior with adaptive policy **off vs on**.
+4. Watch **Window Cache Hit** over warm cycles. This is the most important cache KPI.
+5. Tune bounds (`adaptivePolicyMinTTL`, `adaptivePolicyMaxTTL`, memory/disk limits) to match your content freshness needs.
+
+> Note: `getCacheSize().memory` currently reflects configured memory cache capacity, not precise live memory usage.
+
 ## 🔌 Extensibility with Custom Loaders
 
 SwiftCache uses the **Strategy Pattern** to allow custom implementations for each cache layer:
