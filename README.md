@@ -9,8 +9,9 @@
 A modern, lightweight image caching library for iOS and macOS. Built with 100% Apple native APIs—zero dependencies.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/df1f4b15-4eff-42ce-9264-b3f072f8edc2" alt="demo-app" width="45%" />
-  <img src="https://github.com/user-attachments/assets/021c9d2e-280a-4f8c-9db6-5896cd4eeb11" alt="stats-screen" width="45%" />
+<img src="https://github.com/user-attachments/assets/05752b34-b73f-4500-9196-cc5a0165aa21" alt="stats-screen" width="25%" />/>
+<img src="https://github.com/user-attachments/assets/ebcba772-eae9-4c6a-abb1-30f40b7d75a0" alt="stats-screen" width="25%" />/>
+<img src="https://github.com/user-attachments/assets/b2551981-9e0e-4ac8-85d7-b366cc703463" alt="stats-screen" width="25%" />/>
 </p>
 
 ## 🌟 Features
