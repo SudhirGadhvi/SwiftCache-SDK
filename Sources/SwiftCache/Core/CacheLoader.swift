@@ -38,6 +38,24 @@ public protocol CacheLoader: Sendable {
     func clear() async
 }
 
+/// The cache layer that successfully served a request.
+public enum CacheSourceLayer: String, Sendable {
+    case memory
+    case disk
+    case network
+}
+
+/// Result payload for successful cache loads with layer metadata.
+public struct CacheLoadResult {
+    public let image: SCImage
+    public let source: CacheSourceLayer
+
+    public init(image: SCImage, source: CacheSourceLayer) {
+        self.image = image
+        self.source = source
+    }
+}
+
 // MARK: - Chain of Responsibility: CacheLoaderChain
 
 /// Chain of Responsibility pattern for cache loading
@@ -52,7 +70,7 @@ public actor CacheLoaderChain {
     }
     
     /// Load image by trying each loader in the chain
-    public func load(key: String, url: URL, ttl: TimeInterval) async -> Result<SCImage, SwiftCacheError> {
+    public func load(key: String, url: URL, ttl: TimeInterval) async -> Result<CacheLoadResult, SwiftCacheError> {
         // Try each loader in sequence
         for (index, loader) in loaders.enumerated() {
             if let image = await loader.load(key: key, url: url, ttl: ttl) {
@@ -60,12 +78,23 @@ public actor CacheLoaderChain {
                 for previousIndex in 0..<index {
                     await loaders[previousIndex].store(image: image, key: key, ttl: ttl)
                 }
-                return .success(image)
+                return .success(CacheLoadResult(image: image, source: sourceLayer(for: index)))
             }
         }
         
         // All loaders failed
         return .failure(.imageNotFound)
+    }
+
+    private func sourceLayer(for index: Int) -> CacheSourceLayer {
+        switch index {
+        case 0:
+            return .memory
+        case 1:
+            return .disk
+        default:
+            return .network
+        }
     }
     
     /// Store image in all loaders

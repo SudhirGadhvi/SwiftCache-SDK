@@ -29,6 +29,7 @@ A modern, lightweight image caching library for iOS and macOS. Built with 100% A
 - ✅ **Cancellable Requests** - Cancel downloads when cells are reused
 - ✅ **LRU Eviction** - Automatic cleanup of old cached images
 - ✅ **Analytics** - Built-in performance metrics and cache statistics
+- ✅ **Adaptive Cache Policy** - Optional on-device policy tuning for TTL/cache limits
 - ✅ **Swift 6 Ready** - Full Sendable conformance and strict concurrency
 
 ## 📦 Installation
@@ -120,9 +121,38 @@ Task {
         
         // Enable automatic downscaling (works on iOS and macOS)
         config.maxImageDimension = 2048              // Max 2048px on longest side
+
+        // Optional: adaptive cache policy (caching-first intelligence)
+        config.enableAdaptiveCachePolicy = true
+        config.adaptivePolicyEvaluationInterval = 30 * 60
+        config.adaptivePolicyMinimumRequests = 60
     }
 }
 ```
+
+## 🧠 Adaptive Cache Policy (Optional)
+
+SwiftCache can tune cache settings based on real usage telemetry to improve hit rates and reduce reload costs.
+
+**How it works:**
+- Collects cache telemetry in a rolling window (hits/misses/load time)
+- Evaluates policy periodically (not per request)
+- Applies bounded configuration changes (TTL + cache limits)
+- Falls back to static config when adaptive mode is disabled
+
+```swift
+Task {
+    await SwiftCache.shared.configure { config in
+        config.enableAdaptiveCachePolicy = true
+        config.adaptivePolicyEvaluationInterval = 30 * 60      // every 30 minutes
+        config.adaptivePolicyMinimumRequests = 60               // minimum window size
+        config.adaptivePolicyMinTTL = 5 * 60                   // 5 minutes
+        config.adaptivePolicyMaxTTL = 7 * 24 * 60 * 60         // 7 days
+    }
+}
+```
+
+You can also provide a custom adaptive policy engine if you want to plug in app-specific or on-device Foundation Models logic.
 
 ## 🔌 Extensibility with Custom Loaders
 
@@ -172,24 +202,16 @@ This makes SwiftCache incredibly flexible - use your own cache backends, network
 - [Architecture Guide](Documentation/architecture-guide.md)
 - [Demo App Example](DemoApp/)
 
-## 🗺️ Roadmap
+## 🗺️ Release Highlights
 
-### ✅ v1.0.0 (Released - November 2025)
+### ✅ v2.1.0 (Released - February 2026)
 
-**Initial Release**
-- [x] Three-tier caching system (Memory → Disk → Network)
-- [x] TTL (time-to-live) support with automatic expiration
-- [x] UIImageView extension for easy integration
-- [x] SwiftUI `CachedImage` view
-- [x] Callback-based APIs
-- [x] Progressive loading (thumbnail → full image)
-- [x] Cache analytics and performance metrics
-- [x] Cancellable requests with token-based cancellation
-- [x] Lifecycle-aware memory management
-- [x] LRU disk cache cleanup
-- [x] Cross-platform support (iOS, macOS, tvOS, watchOS)
-- [x] Zero external dependencies
-- [x] Image downscaling (iOS only)
+**Adaptive Caching & On-Device Intelligence**
+- [x] **Adaptive Cache Policy** - Optional telemetry-driven tuning of TTL and cache limits
+- [x] **Foundation Models Integration Point** - Pluggable on-device policy engine for Apple Intelligence-capable devices
+- [x] **Layer-Accurate Analytics** - Metrics now track memory, disk, and network source layers correctly
+- [x] **Real Cancellation Wiring** - Callback/progressive tokens cancel running tasks
+- [x] **Expired Cache Cleanup** - `clearExpiredCache()` removes stale disk entries using `diskCacheMaxAge`
 
 ### ✅ v2.0.0 (Released - November 2025)
 
@@ -209,49 +231,24 @@ This makes SwiftCache incredibly flexible - use your own cache backends, network
 - [x] **Comprehensive tests** - 11 tests covering all features
 - [x] **Architecture guide** - Deep dive documentation
 
-### 🚧 v2.1.0
+### ✅ v1.0.0 (Released - November 2025)
 
-**Reactive & Format Support**
-- [ ] **Combine Support** - Publishers for reactive programming
-- [ ] **GIF Animation Support** - Animated image caching
-- [ ] **WebP Format Support** - Modern image format
-- [ ] **Custom Image Processors** - Transform images before caching
-- [ ] **Network Reachability** - Pause downloads when offline
-- [ ] **Batch Operations** - Bulk prefetch/clear operations
+**Initial Release**
+- [x] Three-tier caching system (Memory → Disk → Network)
+- [x] TTL (time-to-live) support with automatic expiration
+- [x] UIImageView extension for easy integration
+- [x] SwiftUI `CachedImage` view
+- [x] Callback-based APIs
+- [x] Progressive loading (thumbnail → full image)
+- [x] Cache analytics and performance metrics
+- [x] Cancellable requests with token-based cancellation
+- [x] Lifecycle-aware memory management
+- [x] LRU disk cache cleanup
+- [x] Cross-platform support (iOS, macOS, tvOS, watchOS)
+- [x] Zero external dependencies
+- [x] Image downscaling (iOS only)
 
-### 🔮 v2.2.0 
-
-**Intelligence & UX**
-- [ ] **Prefetching API** - Intelligent prefetch with priority
-- [ ] **Image Placeholders** - Blurhash/ThumbHash support
-- [ ] **Cache Warming** - Preload frequently used images
-- [ ] **Memory Pressure Monitoring** - Adaptive cache limits
-- [ ] **Smart Eviction** - Usage-based cache management
-- [ ] **Request Coalescing** - Deduplicate simultaneous requests
-
-### 🎯 v3.0.0
-
-**Advanced Features & Cloud**
-- [ ] **Advanced Transformations** - Resize, crop, filters, effects
-- [ ] **Video Thumbnail Caching** - Extract and cache video frames
-- [ ] **CloudKit Sync** - Sync cache across devices
-- [ ] **Custom Disk Paths** - Multi-level disk cache
-- [ ] **SwiftData Integration** - Modern persistence layer
-- [ ] **Background Downloads** - URLSession background transfer
-- [ ] **Streaming Support** - Progressive JPEG/PNG decoding
-
-### 💡 Future Considerations (Beyond v3.0)
-
-**Next-Gen & ML**
-- [ ] **AVIF Format Support** - Next-gen image format
-- [ ] **HEIF/HEIC Optimization** - Native Apple format improvements
-- [ ] **Smart Cache Eviction** - ML-based prediction
-- [ ] **CDN Integration** - Cloudflare, CloudFront adapters
-- [ ] **Image Quality Adaptation** - Automatic quality based on network
-- [ ] **Distributed Caching** - Multi-device cache sharing
-- [ ] **Server-Side Swift** - Vapor/Hummingbird integration
-
-Want a feature? [Open an issue](https://github.com/SudhirGadhvi/SwiftCache-SDK/issues) or submit a PR!
+For current and upcoming changes, see [CHANGELOG.md](CHANGELOG.md).
 
 ## 🤝 Contributing
 

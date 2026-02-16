@@ -38,7 +38,7 @@ extension SwiftCache {
         let token = CancellationToken()
         let key = cacheKey ?? url.absoluteString
         
-        Task {
+        let task = Task {
             let config = await configuration
             
             guard config.enableProgressiveLoading else {
@@ -90,6 +90,7 @@ extension SwiftCache {
                 }
             }
         }
+        token.setTask(task)
         
         return token
     }

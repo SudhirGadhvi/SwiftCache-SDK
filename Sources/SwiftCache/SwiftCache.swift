@@ -32,6 +32,11 @@ public actor SwiftCache {
     private var diskLoader: DiskLoader
     private var networkLoader: NetworkLoader
     private let analytics = CacheAnalytics()
+    private var adaptivePolicyEngine: any AdaptiveCachePolicyEngine
+    private var adaptiveTelemetry = AdaptiveTelemetryWindow()
+    private var lastAdaptivePolicyEvaluationAt: Date?
+    private var isEvaluatingAdaptivePolicy = false
+    private var usingCustomLoaders = false
     
     // MARK: - Initialization
     
@@ -41,6 +46,7 @@ public actor SwiftCache {
         self.memoryLoader = MemoryLoader(configuration: config)
         self.diskLoader = DiskLoader(configuration: config)
         self.networkLoader = NetworkLoader(configuration: config)
+        self.adaptivePolicyEngine = HeuristicAdaptiveCachePolicyEngine()
         
         // Create chain: Memory → Disk → Network
         self.loaderChain = CacheLoaderChain(
@@ -58,6 +64,7 @@ public actor SwiftCache {
     /// Configure SwiftCache with custom settings
     public func configure(_ configurator: (inout CacheConfiguration) -> Void) async {
         configurator(&configuration)
+        usingCustomLoaders = false
         
         // Recreate loaders with new configuration
         memoryLoader = MemoryLoader(configuration: configuration)
@@ -70,7 +77,14 @@ public actor SwiftCache {
     /// Set custom loaders for extensibility
     /// - Parameter loaders: Array of custom loaders (e.g., custom disk cache, network layer)
     public func setCustomLoaders(_ loaders: [CacheLoader]) async {
+        usingCustomLoaders = true
         await loaderChain.setLoaders(loaders)
+    }
+
+    /// Set a custom adaptive policy engine.
+    /// Use this to provide app-specific tuning logic or on-device model policy recommendations.
+    public func setAdaptivePolicyEngine(_ engine: any AdaptiveCachePolicyEngine) {
+        adaptivePolicyEngine = engine
     }
     
     // MARK: - Public API - Async/Await (Primary)
@@ -99,10 +113,14 @@ public actor SwiftCache {
         if configuration.enableAnalytics {
             await trackMetrics(result: result, duration: duration)
         }
+        if configuration.enableAdaptiveCachePolicy {
+            adaptiveTelemetry.record(result: result, duration: duration)
+            await evaluateAdaptivePolicyIfNeeded()
+        }
         
         switch result {
-        case .success(let image):
-            return image
+        case .success(let loadResult):
+            return loadResult.image
         case .failure(let error):
             throw error
         }
@@ -130,7 +148,7 @@ public actor SwiftCache {
         
         let token = CancellationToken()
         
-        Task {
+        let task = Task {
             // Check cancellation before starting
             if token.isCancelled {
                 completion(.failure(.cancelled))
@@ -154,6 +172,7 @@ public actor SwiftCache {
                 }
             }
         }
+        token.setTask(task)
         
         return token
     }
@@ -174,6 +193,7 @@ public actor SwiftCache {
     /// Clear all caches (memory + disk)
     public func clearCache() async {
         await loaderChain.clearAll()
+        adaptiveTelemetry.reset()
     }
     
     /// Clear all caches (synchronous wrapper for backward compatibility)
@@ -185,8 +205,7 @@ public actor SwiftCache {
     
     /// Clear expired cache entries only
     public func clearExpiredCache() async {
-        // This would need to be implemented in DiskLoader
-        // For now, we can expose it through a method on diskLoader
+        _ = await diskLoader.clearExpiredEntries(olderThan: configuration.diskCacheMaxAge)
     }
     
     /// Clear expired cache entries (synchronous wrapper)
@@ -206,6 +225,16 @@ public actor SwiftCache {
     /// Get cache performance metrics
     public func getMetrics() async -> CacheMetrics {
         return await analytics.getMetrics()
+    }
+
+    /// Get adaptive policy telemetry snapshot for debugging and observability.
+    public func getAdaptivePolicyTelemetry() -> CachePolicyTelemetry {
+        adaptiveTelemetry.snapshot()
+    }
+
+    /// Trigger adaptive policy evaluation immediately.
+    public func evaluateAdaptivePolicy() async {
+        await evaluateAdaptivePolicyIfNeeded(force: true)
     }
     
     /// Get metrics (synchronous wrapper)
@@ -236,14 +265,59 @@ public actor SwiftCache {
     
     // MARK: - Private Methods - Analytics
     
-    private func trackMetrics(result: Result<SCImage, SwiftCacheError>, duration: TimeInterval) async {
+    private func trackMetrics(result: Result<CacheLoadResult, SwiftCacheError>, duration: TimeInterval) async {
         switch result {
-        case .success:
-            // Track success - this could be enhanced to know which loader succeeded
-            await analytics.trackMemoryHit(duration: duration)
+        case .success(let loadResult):
+            switch loadResult.source {
+            case .memory:
+                await analytics.trackMemoryHit(duration: duration)
+            case .disk:
+                await analytics.trackDiskHit(duration: duration)
+            case .network:
+                await analytics.trackNetworkHit(duration: duration)
+            }
         case .failure:
             await analytics.trackMiss()
         }
+    }
+
+    private func evaluateAdaptivePolicyIfNeeded(force: Bool = false) async {
+        guard configuration.enableAdaptiveCachePolicy else { return }
+        guard !usingCustomLoaders else { return }
+        guard !isEvaluatingAdaptivePolicy else { return }
+
+        let hasEnoughRequests = adaptiveTelemetry.totalRequests >= configuration.adaptivePolicyMinimumRequests
+        guard force || hasEnoughRequests else { return }
+
+        let now = Date()
+        if !force {
+            let lastEvaluation = lastAdaptivePolicyEvaluationAt ?? .distantPast
+            guard now.timeIntervalSince(lastEvaluation) >= configuration.adaptivePolicyEvaluationInterval else { return }
+        }
+
+        isEvaluatingAdaptivePolicy = true
+        defer { isEvaluatingAdaptivePolicy = false }
+
+        let snapshot = adaptiveTelemetry.snapshot()
+        guard let updatedConfiguration = await adaptivePolicyEngine.recommendConfiguration(
+            current: configuration,
+            telemetry: snapshot
+        ) else {
+            if force || hasEnoughRequests {
+                lastAdaptivePolicyEvaluationAt = now
+                adaptiveTelemetry.reset()
+            }
+            return
+        }
+
+        configuration = updatedConfiguration
+        memoryLoader = MemoryLoader(configuration: configuration)
+        diskLoader = DiskLoader(configuration: configuration)
+        networkLoader = NetworkLoader(configuration: configuration)
+        await loaderChain.setLoaders([memoryLoader, diskLoader, networkLoader])
+
+        lastAdaptivePolicyEvaluationAt = now
+        adaptiveTelemetry.reset()
     }
     
     // MARK: - Private Methods - Lifecycle
@@ -311,5 +385,57 @@ extension SwiftCache {
     public func storeImage(_ image: SCImage, for key: String, ttl: TimeInterval? = nil) async {
         let effectiveTTL = ttl ?? configuration.defaultTTL
         await loaderChain.store(image: image, key: key, ttl: effectiveTTL)
+    }
+}
+
+private struct AdaptiveTelemetryWindow {
+    private(set) var totalRequests = 0
+    private(set) var memoryHits = 0
+    private(set) var diskHits = 0
+    private(set) var networkHits = 0
+    private(set) var misses = 0
+    private var totalLoadDuration: TimeInterval = 0
+    private var startedAt = Date()
+
+    mutating func record(result: Result<CacheLoadResult, SwiftCacheError>, duration: TimeInterval) {
+        totalRequests += 1
+        totalLoadDuration += duration
+
+        switch result {
+        case .success(let loadResult):
+            switch loadResult.source {
+            case .memory:
+                memoryHits += 1
+            case .disk:
+                diskHits += 1
+            case .network:
+                networkHits += 1
+            }
+        case .failure:
+            misses += 1
+        }
+    }
+
+    mutating func reset() {
+        totalRequests = 0
+        memoryHits = 0
+        diskHits = 0
+        networkHits = 0
+        misses = 0
+        totalLoadDuration = 0
+        startedAt = Date()
+    }
+
+    func snapshot() -> CachePolicyTelemetry {
+        let averageLoadTime = totalRequests > 0 ? totalLoadDuration / Double(totalRequests) : 0
+        return CachePolicyTelemetry(
+            totalRequests: totalRequests,
+            memoryHits: memoryHits,
+            diskHits: diskHits,
+            networkHits: networkHits,
+            totalMisses: misses,
+            averageLoadTime: averageLoadTime,
+            windowDuration: Date().timeIntervalSince(startedAt)
+        )
     }
 }

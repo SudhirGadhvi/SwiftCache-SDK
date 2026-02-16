@@ -8,13 +8,13 @@ Add SwiftCache to your project using Xcode:
 
 1. File → Add Package Dependencies
 2. Enter: `https://github.com/SudhirGadhvi/SwiftCache-SDK`
-3. Select version: `1.0.0` or later
+3. Select version: `2.0.0` or later
 
 Or add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/SudhirGadhvi/SwiftCache-SDK", from: "1.0.0")
+    .package(url: "https://github.com/SudhirGadhvi/SwiftCache-SDK", from: "2.0.0")
 ]
 ```
 
@@ -128,6 +128,23 @@ Task {
 }
 ```
 
+### Adaptive Cache Policy (Optional)
+
+Use adaptive policy to tune cache settings from real cache telemetry. This keeps the cache strategy
+focused on hit-rate and latency improvements, while remaining deterministic and bounded.
+
+```swift
+Task {
+    await SwiftCache.shared.configure { config in
+        config.enableAdaptiveCachePolicy = true
+        config.adaptivePolicyEvaluationInterval = 30 * 60 // 30 minutes
+        config.adaptivePolicyMinimumRequests = 60
+        config.adaptivePolicyMinTTL = 5 * 60             // 5 minutes
+        config.adaptivePolicyMaxTTL = 7 * 24 * 60 * 60   // 7 days
+    }
+}
+```
+
 ## Progressive Loading
 
 Show thumbnails first for better UX:
@@ -146,19 +163,10 @@ imageView.sc.setImageProgressive(with: fullImageURL)
 ## Cache Management
 
 ```swift
-// UIKit - Clear all caches
-SwiftCache.shared.clearCache()
-
-// Clear only expired entries
-SwiftCache.shared.clearExpiredCache()
-
-// SwiftUI - Use async/await in task or button action
-Button("Clear Cache") {
-    SwiftCache.shared.clearCache()
-}
-
-Button("Clear Expired") {
-    SwiftCache.shared.clearExpiredCache()
+// Preferred async usage
+Task {
+    await SwiftCache.shared.clearCache()
+    await SwiftCache.shared.clearExpiredCache()
 }
 
 // Get cache size (async)
@@ -173,6 +181,8 @@ Button("Clear Expired") {
     print("Hit rate: \(metrics.hitRate * 100)%")
 }
 ```
+
+Legacy synchronous wrappers (`clearCache()`, `clearExpiredCache()`) are still available for backward compatibility.
 
 ## Advanced Usage
 

@@ -108,9 +108,11 @@ ImageCache.default.memoryStorage.config.totalCostLimit = 100 * 1024 * 1024
 ImageCache.default.diskStorage.config.sizeLimit = 500 * 1024 * 1024
 
 // SwiftCache
-SwiftCache.shared.configure { config in
-    config.memoryCacheLimit = 100 * 1024 * 1024
-    config.diskCacheLimit = 500 * 1024 * 1024
+Task {
+    await SwiftCache.shared.configure { config in
+        config.memoryCacheLimit = 100 * 1024 * 1024
+        config.diskCacheLimit = 500 * 1024 * 1024
+    }
 }
 ```
 
@@ -122,7 +124,10 @@ ImageCache.default.clearMemoryCache()
 ImageCache.default.clearDiskCache()
 
 // SwiftCache
-SwiftCache.shared.clearCache()
+Task {
+    await SwiftCache.shared.clearCache()
+    await SwiftCache.shared.clearExpiredCache()
+}
 ```
 
 ## Features Mapping
@@ -156,7 +161,7 @@ dependencies: [
 
 // After
 dependencies: [
-    .package(url: "https://github.com/SudhirGadhvi/SwiftCache-SDK", from: "1.0.0")
+    .package(url: "https://github.com/SudhirGadhvi/SwiftCache-SDK", from: "2.0.0")
 ]
 ```
 
@@ -187,8 +192,24 @@ Use global find-and-replace:
 ImageCache.default.memoryStorage.config.totalCostLimit = 100 * 1024 * 1024
 
 // After
-SwiftCache.shared.configure { config in
-    config.memoryCacheLimit = 100 * 1024 * 1024
+Task {
+    await SwiftCache.shared.configure { config in
+        config.memoryCacheLimit = 100 * 1024 * 1024
+    }
+}
+```
+
+### 4.1 Optional: Enable Adaptive Cache Policy
+
+If your app has varied traffic patterns, enable adaptive policy to automatically tune TTL and limits:
+
+```swift
+Task {
+    await SwiftCache.shared.configure { config in
+        config.enableAdaptiveCachePolicy = true
+        config.adaptivePolicyEvaluationInterval = 30 * 60
+        config.adaptivePolicyMinimumRequests = 60
+    }
 }
 ```
 
@@ -204,7 +225,7 @@ SwiftCache.shared.configure { config in
 SwiftCache doesn't currently support:
 
 - GIF animations (use native APIs separately)
-- WebP format (plan for v2.0)
+- WebP format (planned for v2.1+)
 - Complex image processors (basic downscaling only)
 - Custom disk cache paths
 
